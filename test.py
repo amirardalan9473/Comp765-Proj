@@ -43,7 +43,7 @@ def save_object(obj, filename):
     with open(filename, 'wb') as output:  # Overwrites any existing file.
         pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
-class DQNSolver:
+class cartpole_agent_dqn:
 
     def __init__(self, observation_space, action_space):
         self.exploration_rate = EXPLORATION_MAX
@@ -123,7 +123,7 @@ def cartpole():
     score_logger = ScoreLogger(ENV_NAME)
     observation_space = env.observation_space.shape[0]
     action_space = env.action_space.n
-    dqn_solver = DQNSolver(observation_space, action_space)
+    dqn_solver = cartpole_agent_dqn(observation_space, action_space)
     run = 0
     while True:
         run += 1
@@ -153,6 +153,6 @@ def cartpole():
 
 
 if __name__ == "__main__":
-    # cartpole()
-    loader()
+    cartpole()
+    # loader()
 # env.env.close()

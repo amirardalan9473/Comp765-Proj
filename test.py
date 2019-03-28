@@ -21,10 +21,13 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 import pickle
 
+ENV_NAME = "CartPole-v1"
+# ENV_NAME = "CartPole-v99"
 
 from score_logger import ScoreLogger
 
-ENV_NAME = "CartPole-v1"
+
+
 # ENV_NAME = "Acrobot-v1"
 
 
@@ -53,6 +56,8 @@ class cartpole_agent_dqn:
 
         self.model = Sequential()
         self.model.add(Dense(24, input_shape=(observation_space,), activation="relu"))
+        self.model.add(Dense(24, activation="relu"))
+        self.model.add(Dense(24, activation="relu"))
         self.model.add(Dense(24, activation="relu"))
         self.model.add(Dense(self.action_space, activation="linear"))
         self.model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
@@ -147,8 +152,9 @@ def cartpole():
                 break
             dqn_solver.experience_replay()
         if(run %50==0):
-            save_object(dqn_solver, 'dqn_solver.pkl')
+            save_object(dqn_solver, ENV_NAME+ '_'+ 'dqn_solver.pkl')
 
+    save_object(dqn_solver, ENV_NAME + '_' + 'dqn_solver.pkl')
     env.env.close()
 
 

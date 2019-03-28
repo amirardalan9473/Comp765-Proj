@@ -21,8 +21,8 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 import pickle
 
-ENV_NAME = "CartPole-v1"
-# ENV_NAME = "CartPole-v99"
+# ENV_NAME = "CartPole-v1"
+ENV_NAME = "CartPole-v99"
 
 from score_logger import ScoreLogger
 
@@ -84,7 +84,7 @@ class cartpole_agent_dqn:
 
 
 def loader():
-    with open('CartPole-v99_dqn_solver.pkl', 'rb') as input:
+    with open('CartPole-v1_dqn_solver.pkl', 'rb') as input:
         dqn_solver = pickle.load(input)
 
     env = gym.make(ENV_NAME)
@@ -115,13 +115,13 @@ def loader():
                 break
             dqn_solver.experience_replay()
         if (run % 50 == 0):
-            save_object(dqn_solver, 'v99_in_v1_dqn_solver.pkl')
-    save_object(dqn_solver, 'v99_in_v1_dqn_solver.pkl')
+            save_object(dqn_solver, 'v1_in_v99_dqn_solver.pkl')
+    save_object(dqn_solver, 'v1_in_v99_dqn_solver.pkl')
     env.env.close()
 
 
 
 if __name__ == "__main__":
-    cartpole()
-    # loader()
+    # cartpole()
+    loader()
 # env.env.close()

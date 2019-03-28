@@ -7,10 +7,15 @@ import os
 import csv
 import numpy as np
 
-SCORES_CSV_PATH = "./scores.csv"
-SCORES_PNG_PATH = "./scores.png"
-SOLVED_CSV_PATH = "./solved.csv"
-SOLVED_PNG_PATH = "./solved.png"
+# env= "CartPole-v1"
+# env = "CartPole-v99"
+env= 'vanilla_v99_in_v1'
+# env= 'vanilla_v1_in_v99'
+
+SCORES_CSV_PATH = "./"+ env+"_scores.csv"
+SCORES_PNG_PATH = "./"+ env+"_scores.png"
+SOLVED_CSV_PATH = "./"+ env+"_solved.csv"
+SOLVED_PNG_PATH = "./"+ env+"_solved.png"
 AVERAGE_SCORE_TO_SOLVE = 195
 CONSECUTIVE_RUNS_TO_SOLVE = 100
 
@@ -48,9 +53,9 @@ class ScoreLogger:
                            x_label="trials",
                            y_label="steps before solve",
                            average_of_n_last=None,
-                           show_goal=False,
-                           show_trend=False,
-                           show_legend=False)
+                           show_goal=True,
+                           show_trend=True,
+                           show_legend=True)
             exit()
 
     def _save_png(self, input_path, output_path, x_label, y_label, average_of_n_last, show_goal, show_trend, show_legend):

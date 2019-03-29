@@ -19,6 +19,7 @@ from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
+from keras.layers import Dense, Dropout
 import pickle
 
 ENV_NAME = "CartPole-v1"
@@ -48,18 +49,25 @@ def save_object(obj, filename):
 
 class cartpole_agent_dqn:
 
+
     def __init__(self, observation_space, action_space):
+        np.random.seed(1)
+
         self.exploration_rate = EXPLORATION_MAX
 
         self.action_space = action_space
         self.memory = deque(maxlen=MEMORY_SIZE)
 
         self.model = Sequential()
+
         self.model.add(Dense(24, input_shape=(observation_space,), activation="relu"))
+        self.model.add(Dropout(0.1))
+        self.model.add(Dense(24, activation="sigmoid"))
+        self.model.add(Dropout(0.1))
         self.model.add(Dense(24, activation="relu"))
-        self.model.add(Dense(24, activation="relu"))
-        self.model.add(Dense(24, activation="relu"))
+        self.model.add(Dropout(0.1))
         self.model.add(Dense(self.action_space, activation="linear"))
+        self.model.add(Dropout(0.1))
         self.model.compile(loss="mse", optimizer=Adam(lr=LEARNING_RATE))
 
     def remember(self, state, action, reward, next_state, done):
@@ -125,6 +133,7 @@ def loader():
 
 def cartpole():
     env = gym.make(ENV_NAME)
+    env.seed(73)
     score_logger = ScoreLogger(ENV_NAME)
     observation_space = env.observation_space.shape[0]
     action_space = env.action_space.n

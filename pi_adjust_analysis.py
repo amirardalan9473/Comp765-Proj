@@ -7,7 +7,7 @@ from keras.layers import Dense
 from keras.optimizers import Adam
 import pickle
 
-# ENV_NAME_S = "CartPole-v1"
+# ENV_NAME_T = "CartPole-v1"
 ENV_NAME_T = "CartPole-v99"
 
 
@@ -34,13 +34,14 @@ np.random.seed(73)
 
 
 def loader():
-    with open('GOODv1.pkl ', 'rb') as input:
-        dqn_solver = pickle.load(input)
+    with open('GOODv1.pkl ', 'rb') as inp:
+        dqn_solver = pickle.load(inp)
 
-    with open('pi_adj.pkl', 'rb') as input:
-        pi_adjust = pickle.load(input)
+    with open('3_pi_adj.pkl', 'rb') as inp2:
+        pi_adjust = pickle.load(inp2)
 
     env = gym.make(ENV_NAME_T)
+    env.seed(73)
     score_logger = ScoreLogger('PI ADJUST ANALYSISSSSSSS')
     observation_space = env.observation_space.shape[0]
     action_space = env.action_space.n
@@ -59,17 +60,19 @@ def loader():
 
 
             #TODO RUN PI ADJUST
-            # u_action = dqn_solver.act(state)
-            # state_copy = state
-            # fuck = np.append(state_copy[0], u_action)
-            # action = pi_adjust.predict(np.array(fuck).reshape(1, -1))
-            # action = action[0][0]
-            # action = int(round(action))
+            u_action = dqn_solver.act(state)
+            state_copy = state
+            fuck = np.append(state_copy[0], u_action)
+            action = pi_adjust.predict(np.array(fuck).reshape(1, -1))
+            action2 = dqn_solver.act(state)
 
+            action = action[0][0]
+            action = int(round(action))
+            print(action-action2)
             # TODO RUN PI ADJUST COMMENT THE NEXT LINE
 
-            action = dqn_solver.act(state)
-
+            # action = dqn_solver.act(state)
+            #
 
             state_next, reward, terminal, info = env.step(action)
             reward = reward if not terminal else -reward

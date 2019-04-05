@@ -88,6 +88,7 @@ def loader():
         dqn_solver = pickle.load(input)
 
     env = gym.make(ENV_NAME)
+    env.seed(73)
     score_logger = ScoreLogger(ENV_NAME)
     observation_space = env.observation_space.shape[0]
     action_space = env.action_space.n

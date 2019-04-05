@@ -9,7 +9,7 @@ import numpy as np
 
 # env= "CartPole-v1"
 # env = "CartPole-v99"
-env= 'vanilla_v99_in_v1'
+env= 'ANALYSIS'
 # env= 'vanilla_v1_in_v99'
 
 SCORES_CSV_PATH = "./"+ env+"_scores.csv"

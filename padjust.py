@@ -118,7 +118,7 @@ def L3(D_adj):
     # print(x3.shape)
     # print(x3)
     # input()
-
+    print('L3 gpr')
     gpr = GaussianProcessRegressor(kernel=kernel,random_state = 0).\
         fit(x3
             , y.reshape(-1,1))
@@ -180,9 +180,9 @@ def piadjust(NT):
 
 
     #TODO IMplement Pi adjust
-    D_S = sampler(dqn_solver,env_S,10)
+    D_S = sampler(dqn_solver,env_S,1000)
     D_S = noiser(D_S, [0,2])
-
+    print('D_S sampling done')
 
     D_T = None
     i = 0
@@ -192,18 +192,19 @@ def piadjust(NT):
         D_adj = []
 
         if i ==0:
-            D_i_T = sampler(dqn_solver, env_T,100)
+            D_i_T = sampler(dqn_solver, env_T,1000)
 
         elif i!= 0:
-            D_i_T = sampler_adj(pi_adj,dqn_solver, env_T, 100)
+            D_i_T = sampler_adj(pi_adj,dqn_solver, env_T, 1000)
 
         if D_T is not None:
             # print(D_i_T.shape, D_T.shape)
             D_T = np.concatenate((D_i_T,D_T))
         elif  D_T is  None:
             D_T = D_i_T
-
+        print('Goin for inverse dyn')
         gpr = inverse_dyn(D_T)
+        print('inverse dyn done')
 
         for samp in D_S:
 
@@ -231,13 +232,15 @@ def piadjust(NT):
 
 
         # print(i, '    ',x_s, u_t_S, u_t_T)
+        print('Goin for L3')
         pi_adj = L3(D_adj)
-        x_s.append(u_t_S)
+        print('L3 Done')
+        # x_s.append(u_t_S)
         # print(pi_adj.predict(np.array(x_s).reshape(1,-1)))
         print(i)
         i = i + 1
-        if (i%10==0):
-            save_object(pi_adj, 'pi_adj.pkl')
+        if (i%1==0):
+            save_object(pi_adj, str(i)+'_pi_adj.pkl')
 
 
 

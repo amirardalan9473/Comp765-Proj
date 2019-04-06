@@ -1,1 +1,1 @@
-from . import continuous_cartpole
+from . import continuous_cartpole, continuous_cartpole_v1

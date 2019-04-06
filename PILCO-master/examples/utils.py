@@ -88,6 +88,4 @@ def load_pilco(path, controller=None, reward=None, sparse=False):
         values = np.load(path + "model_" + str(i) + ".npy").item()
         m.assign(values)
 
-    # pilco.mgpr.set_XY(X, Y)
-
     return pilco

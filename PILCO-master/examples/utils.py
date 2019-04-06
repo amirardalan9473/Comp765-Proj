@@ -3,6 +3,8 @@ from gpflow import autoflow
 from gpflow import settings
 from pilco.models.pilco import PILCO
 
+from pilco.controllers import RbfController
+
 float_type = settings.dtypes.float_type
 
 
@@ -71,9 +73,6 @@ def load_pilco(path, controller=None, reward=None, sparse=False):
     X = np.loadtxt(path + 'X.csv', delimiter=',')
     Y = np.loadtxt(path + 'Y.csv', delimiter=',')
 
-    print(path + 'X.csv')
-    print(X)
-
     if not sparse:
         pilco = PILCO(X, Y, controller=controller, reward=reward)
     else:
@@ -89,6 +88,6 @@ def load_pilco(path, controller=None, reward=None, sparse=False):
         values = np.load(path + "model_" + str(i) + ".npy").item()
         m.assign(values)
 
-    pilco.mgpr.set_XY(X, Y)
+    # pilco.mgpr.set_XY(X, Y)
 
     return pilco

@@ -9,6 +9,8 @@ from tensorflow import logging
 from examples.utils import rollout, save_pilco
 import continuous_cartpole
 
+import pickle
+
 np.random.seed(0)
 
 # NEEDS a different initialisation than the one in gym (change the reset() method),
@@ -44,18 +46,17 @@ bf = 10
 maxiter=50
 max_action=1.0
 target = np.array([0., 0., 0., 0.]) # TODO review if correct
-weights = np.diag([2.0, 2.0, 0.3, 0.3])
-m_init = np.reshape([-1.0, -1.0, 0., 0.0], (1,4))
+weights = np.diag([0.5, 0.1, 0.5, 0.25])
+m_init = np.reshape([0.0, 0.0, 0., 0.0], (1,4))
 S_init = np.diag([0.01, 0.05, 0.01, 0.05])
 T = 40
 T_sim = T
-J = 4
-N = 1
+J = 10
+
+N = 6
 restarts = 2
 
-
 with tf.Session() as sess:
-    # env = myPendulum()
     env=gym.make('continuous-cartpole-v0')
 
     print('Initial rollout')
@@ -72,9 +73,9 @@ with tf.Session() as sess:
     print('Initial controller, reward and PILCO')
     controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf, max_action=max_action)
     R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
-    pilco = PILCO(X, Y, controller=controller, horizon=T, reward=R, m_init=m_init, S_init=S_init, num_induced_points=15)
+    pilco = PILCO(X, Y, controller=controller, horizon=T, reward=R, m_init=m_init, S_init=S_init)
 
-    save_pilco('saved/pilco-continuous-cartpole-initial', X, Y, pilco, sparse=True)
+    save_pilco('saved/pilco-continuous-cartpole-initial', X, Y, pilco)
 
     # for numerical stability
     for model in pilco.mgpr.models:
@@ -86,6 +87,7 @@ with tf.Session() as sess:
         pilco.optimize_models(maxiter=maxiter, restarts=2)
         pilco.optimize_policy(maxiter=maxiter, restarts=2)
 
+        # input('Press Enter to start rollout')
         X_new, Y_new = rollout(env, pilco, timesteps=T_sim, verbose=False, SUBS=SUBS)
 
         # Since we had decide on the various parameters of the reward function
@@ -100,4 +102,4 @@ with tf.Session() as sess:
         pilco.mgpr.set_XY(X, Y)
 
         # Save everything
-        save_pilco('saved/pilco-continuous-cartpole-{:d}'.format(rollouts), X, Y, pilco, sparse=True)
+        save_pilco('saved/pilco-continuous-cartpole-{:d}'.format(rollouts), X, Y, pilco)

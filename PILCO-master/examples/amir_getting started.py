@@ -326,8 +326,29 @@ def piadjust(NT,name):
     return(pi_adj)
 
 
+
+
+
+
+def inverted_pend_experiment():
+    env = gym.make('Pendulum-v0')
+    env.seed(73)
+    for i_episode in range(20):
+        observation = env.reset()
+        for t in range(100):
+            env.render()
+            print(observation)
+            action = env.action_space
+            print('DAS it: ', action.low,action.high)
+            print('DAS it: ', env.observation_space.low, env.observation_space.high)
+            input()
+            observation, reward, done, info = env.step(action)
+
+    env.close()
+
 if __name__ == "__main__":
     # cartpole()
     # loader('5')
-    piadjust(10,'5')
+    # piadjust(10,'5')
+    inverted_pend_experiment()
 # env.env.close()

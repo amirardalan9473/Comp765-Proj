@@ -330,25 +330,114 @@ def piadjust(NT,name):
 
 
 
-def inverted_pend_experiment():
-    env = gym.make('Pendulum-v0')
-    env.seed(73)
-    for i_episode in range(20):
-        observation = env.reset()
-        for t in range(100):
-            env.render()
-            print(observation)
-            action = env.action_space
-            print('DAS it: ', action.low,action.high)
-            print('DAS it: ', env.observation_space.low, env.observation_space.high)
-            input()
-            observation, reward, done, info = env.step(action)
+def inverted_pend_experiment(NT,name):
+    # env = gym.make('Pendulum-v0')
+    # env.seed(73)
+    # for i_episode in range(20):
+    #     observation = env.reset()
+    #     for t in range(100):
+    #         env.render()
+    #         print(observation)
+    #         action = env.action_space
+    #         print('DAS it: ', action.low,action.high)
+    #         print('DAS it: ', env.observation_space.low, env.observation_space.high)
+    #         input()
+    #         observation, reward, done, info = env.step(action)
+    #
+    # env.close()
 
-    env.close()
+    env = gym.make('continuous-cartpole-v99')
+    env.seed(73)
+    controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf,
+                               max_action=max_action)
+    R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
+    pilco = load_pilco('saved/pilco-continuous-cartpole-{:s}'.format(name), controller=controller, reward=R,
+                       sparse=False)
+
+    env_S = gym.make('continuous-cartpole-v0')
+    env_S.seed(73)
+
+    env_T = gym.make('Pendulum-v0')
+    env_T.seed(73)
+
+
+    score_logger_S = ScoreLogger('PI ADJUST ANALYSISSSSSSS')
+
+
+    #TODO IMplement Pi adjust
+    D_S = sampler(pilco,env_S,10)
+    D_S = noiser(D_S, [0,2])
+    print('D_S sampling done')
+
+    D_T = None
+    i = 0
+    pi_adj = pilco
+
+    while i< NT:
+        D_adj = []
+
+        if i ==0:
+            D_i_T = sampler(pilco, env_T,10)
+
+        elif i!= 0:
+            D_i_T = sampler_adj(pi_adj,pilco, env_T, 10)
+
+        if D_T is not None:
+            # print(D_i_T.shape, D_T.shape)
+            D_T = np.concatenate((D_i_T,D_T))
+        elif  D_T is  None:
+            D_T = D_i_T
+
+
+        print('Goin for inverse dyn')
+        gpr = inverse_dyn(D_T)
+        print('inverse dyn done')
+
+        for samp in D_S:
+
+
+            x_s = np.ndarray.tolist(samp[0])
+            x_s1 = np.ndarray.tolist(samp[2])
+            u_t_S = samp[1]
+            # print(u_t_S)
+
+            a=np.ndarray.tolist(samp[0])
+
+            a.extend( np.ndarray.tolist(samp[2]))
+            # print( np.array(a).reshape(1, 8)  )
+            # print(a.shape, '\n\n\n')
+            u_t_T = gpr.predict( np.array(a).reshape(1, 8), return_std=False)
+
+
+            # print('\n\n', dqn_solver.act(  np.array(a[0:4]).reshape([1,4] ) ))
+            # print( np.array(a[0:4]).reshape([1,4] )
+            # print(i, '    ', D_adj)
+            D_adj.append((x_s, u_t_S, u_t_T))
+
+
+        # print(i, '    ',x_s, u_t_S, u_t_T)
+        print('Goin for L3')
+        pi_adj = L3(D_adj)
+        print('L3 Done')
+        # x_s.append(u_t_S)
+        # print(pi_adj.predict(np.array(x_s).reshape(1,-1)))
+        print(i)
+        i = i + 1
+        if (i%1==0):
+            save_object(pi_adj, 'PENDULUM_'+str(i)+'_pi_adj.pkl')
+
+    env_S.env.close()
+    env_T.env.close()
+
+    return(pi_adj)
+
+
+
+
 
 if __name__ == "__main__":
     # cartpole()
     # loader('5')
     # piadjust(10,'5')
-    inverted_pend_experiment()
+    inverted_pend_experiment(10,'5')
 # env.env.close()

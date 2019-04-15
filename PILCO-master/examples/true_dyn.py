@@ -217,13 +217,18 @@ def sampler_adj(pi_adj, pi_s, env, samples_n):
         a = np.ndarray.tolist(state_copy)
         a.extend(np.ndarray.tolist(u_action))
         action = pi_adj.predict(np.array(a).reshape(1,-1))
-        action=action[0]+ np.random.normal(0,SIGMA)
+        action=action[0]
         # if action!=u_action:
         #     print('DIIFFFFF')
         # print(action, u_action)
         # input()
-
-        state_next, reward, terminal, info = env.step(action)
+        if action+u_action+ np.random.normal(0,SIGMA)>1:
+            act=np.array([1])
+        elif action+u_action+ np.random.normal(0,SIGMA)<-1:
+            act=np.array([-1])
+        else:
+            act=action+u_action+ np.random.normal(0,SIGMA)
+        state_next, reward, terminal, info = env.step(act)
         # state_next = np.reshape(state_next, [1, observation_space])
 
         D.append([state,action,state_next])
@@ -272,10 +277,10 @@ def piadjust(NT,name):
         D_adj = []
 
         if i ==0:
-            D_i_T = sampler(pilco, env_T,30)
+            D_i_T = sampler(pilco, env_T,10)
 
         elif i!= 0:
-            D_i_T = sampler_adj(pi_adj,pilco, env_T, 30)
+            D_i_T = sampler_adj(pi_adj,pilco, env_T, 10)
 
         if D_T is not None:
             # print(D_i_T.shape, D_T.shape)
@@ -307,7 +312,7 @@ def piadjust(NT,name):
             # print('\n\n', dqn_solver.act(  np.array(a[0:4]).reshape([1,4] ) ))
             # print( np.array(a[0:4]).reshape([1,4] )
             # print(i, '    ', D_adj)
-            D_adj.append((x_s, u_t_S, u_t_T))
+            D_adj.append((x_s, u_t_S, u_t_T-u_t_S))
 
 
         # print(i, '    ',x_s, u_t_S, u_t_T)

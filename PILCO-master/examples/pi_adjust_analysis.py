@@ -57,8 +57,6 @@ EXPLORATION_MIN = 0.01
 
 from test import *
 
-np.random.seed(73)
-
 np.random.seed(0)
 
 ITERATION_TO_LOAD = 7
@@ -120,7 +118,7 @@ def loader(name):
             action = pi_adjust.predict(np.array(a).reshape(1, -1))
             action = action[0]
             # TODO RUN PI ADJUST COMMENT THE NEXT LINE
-
+            print(u_action,action)
             state_next, reward, terminal, info = env.step(action)
             reward = reward if not terminal else -reward
             state = state_next
@@ -134,7 +132,110 @@ def loader(name):
 
 
 
+def true_loader(name):
+    env = gym.make('continuous-cartpole-v99')
+    env.seed(73)
+    controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf,
+                               max_action=max_action)
+    R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
+    pilco = load_pilco('saved/pilco-continuous-cartpole-{:s}'.format(name), controller=controller, reward=R,
+                       sparse=False)
+
+    with open('9true_dyn_pi_adj.pkl', 'rb') as inp2:
+        pi_adjust = pickle.load(inp2)
+
+
+    with open('10_pi_adj.pkl', 'rb') as inp2:
+        good_pi = pickle.load(inp2)
+
+    score_logger = ScoreLogger('PI ADJUST ANALYSISSSSSSS')
+    run = 0
+    while True:
+        run += 1
+        state = env.reset()
+        # print(state)
+        # input()
+        step = 0
+        while True:
+            step += 1
+            env.render()
+
+            #TODO RUN PI ADJUST
+            u_action = utils.policy(env, pilco, state, False)
+            state_copy = state
+
+            a = np.ndarray.tolist(state_copy)
+            a.extend(np.ndarray.tolist(u_action))
+            action = pi_adjust.predict(np.array(a).reshape(1, -1))[0]
+
+            # good_action=good_pi.predict(np.array(a).reshape(1, -1))
+            # good_action=good_action[0]
+
+            # action = action[0]
+            # TODO RUN PI ADJUST COMMENT THE NEXT LINE
+            #print(action+u_action)
+            #input()
+            # print(u_action,action,u_action+action,good_action)
+
+            # if action[0] > 1:
+            #     action[0] = 1
+            # elif action[0] < -1:
+            #     action[0] = -1
+
+            state_next, reward, terminal, info = env.step(action + u_action)
+            reward = reward if not terminal else -reward
+            state = state_next
+
+            if terminal:
+                print(
+                    "Run: "  + ", score: " + str(step))
+                score_logger.add_score(step, run)
+                break
+
+    env.env.close()
+
+
+def see_progression():
+    env = gym.make('continuous-cartpole-v99')
+    # env.seed(73)
+    controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf,
+                               max_action=max_action)
+    R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
+    pilco = load_pilco('saved/pilco-continuous-cartpole-{:s}'.format('5'), controller=controller, reward=R,
+                       sparse=False)
+
+    for i in range(10):
+        with open('9true_dyn_pi_adj.pkl', 'rb') as inp2:
+            pi_adjust = pickle.load(inp2)
+
+        score_logger = ScoreLogger('Score for Model {:d}'.format(i))
+        state = env.reset()
+        step = 0
+        while True:
+            step += 1
+
+            env.render()
+
+            u_action = utils.policy(env, pilco, state, False)
+            state_copy = state
+
+            a = np.ndarray.tolist(state_copy)
+            a.extend(np.ndarray.tolist(u_action))
+            pi_adjust_action = pi_adjust.predict(np.array(a).reshape(1, -1))[0]
+            # pi_adjust_action = 0 # ENABLE THIS TO SEE IT RUN WITHOUT THE ADJUSTMENT
+
+            state_next, reward, terminal, info = env.step(u_action + pi_adjust_action)
+            reward = reward if not terminal else -reward
+            state = state_next
+
+            if terminal:
+                print('Run: {:d}, score: {:d}'.format(i, step))
+                score_logger.add_score(step, i)
+                break
+
 if __name__ == "__main__":
     # cartpole()
-    loader('5')
+    # loader('5')
+    # true_loader('5')
+    see_progression()
 # env.env.close()

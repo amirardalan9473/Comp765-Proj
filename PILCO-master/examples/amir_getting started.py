@@ -52,6 +52,7 @@ control_dim = 1
 
 N = 6
 
+SIGMA=0.00000000001
 
 def load_and_run_model(env, name):
     controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf, max_action=max_action)
@@ -126,7 +127,7 @@ def sampler(pi, env, samples_n):
 
     for i in range(samples_n):
 
-        action = utils.policy(env, pi, state, False)
+        action = utils.policy(env, pi, state, False)+ np.random.normal(0,SIGMA)
 
         state_next, reward, terminal, info = env.step(action)
         if D is not None:
@@ -216,7 +217,7 @@ def sampler_adj(pi_adj, pi_s, env, samples_n):
         a = np.ndarray.tolist(state_copy)
         a.extend(np.ndarray.tolist(u_action))
         action = pi_adj.predict(np.array(a).reshape(1,-1))
-        action=action[0]
+        action=action[0]+ np.random.normal(0,SIGMA)
         # if action!=u_action:
         #     print('DIIFFFFF')
         # print(action, u_action)
@@ -260,7 +261,7 @@ def piadjust(NT,name):
 
     #TODO IMplement Pi adjust
     D_S = sampler(pilco,env_S,10)
-    D_S = noiser(D_S, [0,2])
+    # D_S = noiser(D_S, [0,2])
     print('D_S sampling done')
 
     D_T = None
@@ -271,10 +272,10 @@ def piadjust(NT,name):
         D_adj = []
 
         if i ==0:
-            D_i_T = sampler(pilco, env_T,10)
+            D_i_T = sampler(pilco, env_T,30)
 
         elif i!= 0:
-            D_i_T = sampler_adj(pi_adj,pilco, env_T, 10)
+            D_i_T = sampler_adj(pi_adj,pilco, env_T, 30)
 
         if D_T is not None:
             # print(D_i_T.shape, D_T.shape)
@@ -318,7 +319,7 @@ def piadjust(NT,name):
         print(i)
         i = i + 1
         if (i%1==0):
-            save_object(pi_adj, str(i)+'_pi_adj.pkl')
+            save_object(pi_adj, str(i)+'true_dyn_pi_adj.pkl')
 
     env_S.env.close()
     env_T.env.close()

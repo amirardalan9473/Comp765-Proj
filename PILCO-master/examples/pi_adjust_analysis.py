@@ -144,9 +144,8 @@ def true_loader(name):
     with open('9true_dyn_pi_adj.pkl', 'rb') as inp2:
         pi_adjust = pickle.load(inp2)
 
-
-    with open('10_pi_adj.pkl', 'rb') as inp2:
-        good_pi = pickle.load(inp2)
+    # with open('10_pi_adj.pkl', 'rb') as inp2:
+    #     good_pi = pickle.load(inp2)
 
     score_logger = ScoreLogger('PI ADJUST ANALYSISSSSSSS')
     run = 0
@@ -160,27 +159,12 @@ def true_loader(name):
             step += 1
             env.render()
 
-            #TODO RUN PI ADJUST
             u_action = utils.policy(env, pilco, state, False)
             state_copy = state
 
             a = np.ndarray.tolist(state_copy)
             a.extend(np.ndarray.tolist(u_action))
             action = pi_adjust.predict(np.array(a).reshape(1, -1))[0]
-
-            # good_action=good_pi.predict(np.array(a).reshape(1, -1))
-            # good_action=good_action[0]
-
-            # action = action[0]
-            # TODO RUN PI ADJUST COMMENT THE NEXT LINE
-            #print(action+u_action)
-            #input()
-            # print(u_action,action,u_action+action,good_action)
-
-            # if action[0] > 1:
-            #     action[0] = 1
-            # elif action[0] < -1:
-            #     action[0] = -1
 
             state_next, reward, terminal, info = env.step(action + u_action)
             reward = reward if not terminal else -reward
@@ -205,7 +189,7 @@ def see_progression():
                        sparse=False)
 
     for i in range(10):
-        with open('9true_dyn_pi_adj.pkl', 'rb') as inp2:
+        with open('{:d}true_dyn_pi_adj.pkl'.format(i), 'rb') as inp2:
             pi_adjust = pickle.load(inp2)
 
         score_logger = ScoreLogger('Score for Model {:d}'.format(i))

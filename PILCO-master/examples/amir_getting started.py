@@ -193,14 +193,15 @@ def piadjust(NT, name):
     env_T = gym.make('continuous-cartpole-v99')
     env_T.seed(73)
 
-    # TODO Implement Pi adjust
     D_S = sampler(pilco, env_S, samples_n=30, trials=50)
-    print('D_S sampling done')
+    # print('D_S sampling done')
 
     D_T = None
     pi_adj = pilco
 
     for i in range(NT):
+        print('{:d}/{:d}'.format(i + 1, NT))
+
         D_adj = []
 
         if i == 0:
@@ -213,9 +214,9 @@ def piadjust(NT, name):
         elif D_T is None:
             D_T = D_i_T
 
-        print('Going for inverse dyn')
+        # print('Going for inverse dyn')
         gpr = inverse_dyn(D_T)
-        print('inverse dyn done')
+        # print('inverse dyn done')
 
         for samp in D_S:
             x_s = list(samp[0])
@@ -227,14 +228,13 @@ def piadjust(NT, name):
 
             D_adj.append((x_s, u_t_S, u_t_T - u_t_S))
 
-        print('Going for L3')
+        # print('Going for L3')
         pi_adj = L3(D_adj)
-        print('L3 Done')
+        # print('L3 Done')
 
-        print(i)
         # i = i + 1
         # if (i % 1 == 0):
-        save_object(pi_adj, str(i)+'true_dyn_pi_adj.pkl')
+        save_object(pi_adj, 'transfer-save/pilco-{:s}-transfer-{:d}.pkl'.format(name, i))
 
     env_S.env.close()
     env_T.env.close()
@@ -242,9 +242,16 @@ def piadjust(NT, name):
     return pi_adj
 
 
+def train_all_pilcos():
+    pilcos = ['initial'] + [str(i) for i in range(6)]
+    for p in pilcos:
+        print('Training pilco version: {:s}'.format(p))
+        piadjust(10, p)
+
 if __name__ == "__main__":
     # cartpole()
     # loader('5')
-    piadjust(10, '5')
+    # piadjust(10, '5')
+    train_all_pilcos()
 
 # env.env.close()

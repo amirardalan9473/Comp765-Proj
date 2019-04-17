@@ -1,44 +1,22 @@
-import random
-import gym
-import numpy as np
-from collections import deque
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from keras.optimizers import Adam
-import pickle
-import numpy as np
-import gym
-from pilco.models import PILCO
 from pilco.controllers import RbfController, LinearController
 from pilco.rewards import ExponentialReward
-import tensorflow as tf
 
-from examples.utils import rollout, load_pilco
-import continuous_cartpole
-import pickle
-from score_logger import ScoreLogger
-import utils
-import random
+from examples.utils import load_pilco
+
 import gym
 import numpy as np
-from collections import deque
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from keras.optimizers import Adam
-# from keras.layers import Dense, Dropout
-import pickle
 
-import  sklearn
+import pickle
+import utils
+
 
 import warnings
 warnings.filterwarnings("ignore")
 
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import ConstantKernel, RBF
+import continuous_cartpole
 
 # ENV_NAME_T = "CartPole-v1"
 # ENV_NAME_T = "CartPole-v99"
-
 
 
 from score_logger import ScoreLogger
@@ -54,8 +32,6 @@ BATCH_SIZE = 20
 
 EXPLORATION_MAX = 1.0
 EXPLORATION_MIN = 0.01
-
-from test import *
 
 np.random.seed(0)
 
@@ -80,7 +56,6 @@ control_dim = 1
 
 N = 6
 
-import utils
 
 def loader(name):
     env = gym.make('continuous-cartpole-v99')
@@ -179,17 +154,20 @@ def true_loader(name):
     env.env.close()
 
 
-def see_progression():
+def see_progression(pilco_name='saved/pilco-continuous-cartpole-5', transfer_name='{:d}true_dyn_pi_adj.pkl'):
     env = gym.make('continuous-cartpole-v99')
     # env.seed(73)
     controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf,
                                max_action=max_action)
     R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
-    pilco = load_pilco('saved/pilco-continuous-cartpole-{:s}'.format('5'), controller=controller, reward=R,
+    pilco = load_pilco(pilco_name, controller=controller, reward=R,
                        sparse=False)
 
+    rewards = []
+
     for i in range(10):
-        with open('{:d}true_dyn_pi_adj.pkl'.format(i), 'rb') as inp2:
+        print('Running {:s}'.format(transfer_name.format(i)))
+        with open(transfer_name.format(i), 'rb') as inp2:
             pi_adjust = pickle.load(inp2)
 
         score_logger = ScoreLogger('Score for Model {:d}'.format(i))
@@ -217,9 +195,50 @@ def see_progression():
                 score_logger.add_score(step, i)
                 break
 
+        rewards.append(step)
+
+    env.close()
+    return rewards
+
+
+def all_progressions():
+    pilcos = ['initial'] + [str(i) for i in range(6)]
+    all_rewards = {}
+    for i, p in enumerate(pilcos):
+        rewards = see_progression('saved/pilco-continuous-cartpole-{:s}'.format(p), 'transfer-save/pilco-{:s}-transfer-{{:d}}.pkl'.format(p))
+        all_rewards[i] = rewards
+
+    return all_rewards
+
+
+def plot():
+    with open('rewards', 'rb') as f:
+        rewards = pickle.load(f)
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    for i, r in enumerate(rewards.keys()):
+        x = [i for _ in rewards[r]]
+        y = [i for i, _ in enumerate(rewards[r])]
+        z = [r for r in rewards[r]]
+        ax.plot3D(x, y, z)
+        ax.scatter3D(x, y, z)
+
+    plt.savefig('rewards_plot', bbox_inches="tight")
+    plt.close()
+
+
 if __name__ == "__main__":
     # cartpole()
     # loader('5')
     # true_loader('5')
-    see_progression()
+
+    # rewards = all_progressions()
+    # with open('rewards', 'wb') as output:  # Overwrites any existing file.
+    #     pickle.dump(rewards, output, pickle.HIGHEST_PROTOCOL)
+
+    plot()
+
 # env.env.close()

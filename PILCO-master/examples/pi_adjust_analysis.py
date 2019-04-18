@@ -1,3 +1,6 @@
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 from pilco.controllers import RbfController, LinearController
 from pilco.rewards import ExponentialReward
 
@@ -154,21 +157,20 @@ def true_loader(name):
     env.env.close()
 
 
-def see_progression(pilco_name='saved/pilco-continuous-cartpole-5', transfer_name='{:d}true_dyn_pi_adj.pkl'):
+def see_progression(pilco_name='saved/pilco-continuous-cartpole-5', transfer_name='{:d}true_dyn_pi_adj.pkl', adjust=True):
     env = gym.make('continuous-cartpole-v99')
     # env.seed(73)
-    controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf,
-                               max_action=max_action)
+    controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf, max_action=max_action)
     R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
-    pilco = load_pilco(pilco_name, controller=controller, reward=R,
-                       sparse=False)
+    pilco = load_pilco(pilco_name, controller=controller, reward=R, sparse=False)
 
     rewards = []
 
     for i in range(10):
         print('Running {:s}'.format(transfer_name.format(i)))
-        with open(transfer_name.format(i), 'rb') as inp2:
-            pi_adjust = pickle.load(inp2)
+        if adjust:
+            with open(transfer_name.format(i), 'rb') as inp2:
+                pi_adjust = pickle.load(inp2)
 
         score_logger = ScoreLogger('Score for Model {:d}'.format(i))
         state = env.reset()
@@ -183,8 +185,11 @@ def see_progression(pilco_name='saved/pilco-continuous-cartpole-5', transfer_nam
 
             a = np.ndarray.tolist(state_copy)
             a.extend(np.ndarray.tolist(u_action))
-            pi_adjust_action = pi_adjust.predict(np.array(a).reshape(1, -1))[0]
-            # pi_adjust_action = 0 # ENABLE THIS TO SEE IT RUN WITHOUT THE ADJUSTMENT
+
+            if adjust:
+                pi_adjust_action = pi_adjust.predict(np.array(a).reshape(1, -1))[0]
+            else:
+                pi_adjust_action = 0 # ENABLE THIS TO SEE IT RUN WITHOUT THE ADJUSTMENT
 
             state_next, reward, terminal, info = env.step(u_action + pi_adjust_action)
             reward = reward if not terminal else -reward
@@ -211,10 +216,9 @@ def all_progressions():
     return all_rewards
 
 
-def plot():
+def plot_transfer_learning_curves():
     with open('rewards', 'rb') as f:
         rewards = pickle.load(f)
-    import matplotlib.pyplot as plt
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -230,6 +234,68 @@ def plot():
     plt.close()
 
 
+def plot_pilco_source_learning_curve():
+    env = gym.make('continuous-cartpole-v0')
+    env.seed(73)
+
+    pilcos = ['initial'] + [str(i) for i in range(6)]
+
+
+    rewards = []
+    for i, p in enumerate(pilcos):
+        controller = RbfController(state_dim=state_dim, control_dim=control_dim, num_basis_functions=bf, max_action=max_action)
+        R = ExponentialReward(state_dim=state_dim, t=target, W=weights)
+        pilco = load_pilco('saved/pilco-continuous-cartpole-{:s}'.format(p), controller=controller, reward=R, sparse=False)
+
+        score_logger = ScoreLogger('Score for Model {:d}'.format(i))
+        state = env.reset()
+        step = 0
+
+        xs = []
+        angles = []
+
+        while True:
+            xs.append(state[0])
+            angles.append(state[2])
+            step += 1
+
+            env.render()
+
+            u_action = utils.policy(env, pilco, state, False)
+            state_copy = state
+
+            a = np.ndarray.tolist(state_copy)
+            a.extend(np.ndarray.tolist(u_action))
+
+
+            state_next, reward, terminal, info = env.step(u_action)
+            reward = reward if not terminal else -reward
+            state = state_next
+
+            if terminal:
+                print('Run: {:d}, score: {:d}'.format(i, step))
+                score_logger.add_score(step, i)
+                break
+
+        rewards.append(step)
+
+        plt.plot(xs, angles)
+        plt.savefig('pilco-{:d}_states_plot'.format(i), bbox_inches="tight")
+        plt.close()
+
+    env.close()
+
+    plt.plot([i for i, _ in enumerate(pilcos)], rewards)
+    plt.savefig('pilco_rewards_plot', bbox_inches="tight")
+    plt.close()
+
+
+    return rewards, xs, angles
+
+
+    # with open('plot_pilco_source_learning_curve_dump', 'wb') as output:  # Overwrites any existing file.
+    #     pickle.dump(rewards, output, pickle.HIGHEST_PROTOCOL)
+
 if __name__ == "__main__":
     # cartpole()
     # loader('5')
@@ -239,6 +305,7 @@ if __name__ == "__main__":
     # with open('rewards', 'wb') as output:  # Overwrites any existing file.
     #     pickle.dump(rewards, output, pickle.HIGHEST_PROTOCOL)
 
-    plot()
+    # plot_transfer_learning_curves()
+    plot_pilco_source_learning_curve()
 
 # env.env.close()

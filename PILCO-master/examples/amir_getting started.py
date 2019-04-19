@@ -438,6 +438,6 @@ def inverted_pend_experiment(NT,name):
 if __name__ == "__main__":
     # cartpole()
     # loader('5')
-    # piadjust(10,'5')
+    piadjust(10,'5')
     inverted_pend_experiment(10,'5')
 # env.env.close()

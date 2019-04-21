@@ -23,6 +23,7 @@ from pilco.models import PILCO
 from pilco.controllers import RbfController, LinearController
 from pilco.rewards import ExponentialReward
 import tensorflow as tf
+from keras.models import load_model
 
 from examples.utils import rollout, load_pilco
 import continuous_cartpole
@@ -75,7 +76,7 @@ N = 6
 
 
 
-def sampler(pi, env, samples_n,sigma, trials=1,render=True):
+def sampler(pi, env, samples_n,sigma, trials=1,render=False):
     D = None
 
     for t in range(trials):
@@ -128,147 +129,171 @@ def dataset(name='5'):
     D_S4= np.concatenate((D_S3,sampler(pilco, env_S, samples_n=30,sigma=1e-4, trials=50)))
     D_S5= np.concatenate((D_S4,sampler(pilco, env_S, samples_n=30,sigma=1e-2, trials=50)))
 
-    print(D_S5.shape)
-    input()
+    save_object(D_S5, 'VAE_S.pkl')
+
+
+    D_S = sampler(pilco, env_T, samples_n=30,sigma=1e-10, trials=50)
+    D_S2= np.concatenate((D_S,sampler(pilco, env_T, samples_n=30,sigma=1e-8, trials=50)))
+    D_S3 =np.concatenate((D_S2,sampler(pilco, env_T, samples_n=30,sigma=1e-6, trials=50)))
+    D_S4= np.concatenate((D_S3,sampler(pilco, env_T, samples_n=30,sigma=1e-4, trials=50)))
+    D_S5= np.concatenate((D_S4,sampler(pilco, env_T, samples_n=30,sigma=1e-2, trials=50)))
+
+    save_object(D_S5, 'VAE_T.pkl')
+
 
 
     print('D_S sampling done')
 
-    D_T = None
-    i = 0
-    pi_adj = pilco
-
-    while i< NT:
-        D_adj = []
-
-        if i ==0:
-            D_i_T = sampler(pilco, env_T,10)
-
-        elif i!= 0:
-            D_i_T = sampler_adj(pi_adj,pilco, env_T, 10)
-
-        if D_T is not None:
-            # print(D_i_T.shape, D_T.shape)
-            D_T = np.concatenate((D_i_T,D_T))
-        elif  D_T is  None:
-            D_T = D_i_T
-
-
-        print('Goin for inverse dyn')
-        gpr = inverse_dyn(D_T)
-        print('inverse dyn done')
-
-        for samp in D_S:
-
-
-            x_s = np.ndarray.tolist(samp[0])
-            x_s1 = np.ndarray.tolist(samp[2])
-            u_t_S = samp[1]
-            # print(u_t_S)
-
-            a=np.ndarray.tolist(samp[0])
-
-            a.extend( np.ndarray.tolist(samp[2]))
-            # print( np.array(a).reshape(1, 8)  )
-            # print(a.shape, '\n\n\n')
-            u_t_T = gpr.predict( np.array(a).reshape(1, 8), return_std=False)
-
-
-
-            D_adj.append((x_s, u_t_S, u_t_T))
-
-
-        # print(i, '    ',x_s, u_t_S, u_t_T)
-        print('Goin for L3')
-        pi_adj = L3(D_adj)
-        print('L3 Done')
-        # x_s.append(u_t_S)
-        # print(pi_adj.predict(np.array(x_s).reshape(1,-1)))
-        print(i)
-        i = i + 1
-        if (i%1==0):
-            save_object(pi_adj, str(i)+'_pi_adj.pkl')
 
     env_S.env.close()
     env_T.env.close()
 
-    return(pi_adj)
+
+def mat_loader(s='VAE_S.pkl',t='VAE_T.pkl'):
+
+    with open(s, 'rb') as S:
+        source = pickle.load(S)
+
+    with open(t,'rb') as T:
+        target = pickle.load(T)
+
+
+    x = np.array([ np.ndarray.tolist(xi) for xi in source[:, 0] ])
+    x2= np.array([ np.ndarray.tolist(xi) for xi in source[:, 1] ])
+    x3 = np.array([ np.ndarray.tolist(xi) for xi in source[:, 2] ])
+    x4 = np.hstack((x,x2))
+    source=np.hstack((x4,x3))
+
+    x = np.array([np.ndarray.tolist(xi) for xi in target[:, 0]])
+    x2 = np.array([np.ndarray.tolist(xi) for xi in target[:, 1]])
+    x3 = np.array([np.ndarray.tolist(xi) for xi in target[:, 2]])
+    x4 = np.hstack((x, x2))
+    target = np.hstack((x4, x3))
+
+    print(source.shape,target.shape)
+    return(source,target)
 
 
 #TODO AUTOENCOD BEGIN################################################################################
 
-x = Input(batch_shape=(batch_size, original_dim))
-h = Dense(intermediate_dim, activation='relu')(x)
-z_mean = Dense(latent_dim)(h)
-z_log_sigma = Dense(latent_dim)(h)
 
 
-
-
-
-
+# reparameterization trick
+# instead of sampling from Q(z|X), sample epsilon = N(0,I)
+# z = z_mean + sqrt(var) * epsilon
 def sampling(args):
-    z_mean, z_log_sigma = args
+    """Reparameterization trick by sampling from an isotropic unit Gaussian.
+
+    # Arguments
+        args (tensor): mean and log of variance of Q(z|X)
+
+    # Returns
+        z (tensor): sampled latent vector
+    """
+
+    z_mean, z_log_var = args
+    batch = K.shape(z_mean)[0]
+    dim = K.int_shape(z_mean)[1]
+    # by default, random_normal has mean = 0 and std = 1.0
     epsilon = K.random_normal(shape=(batch, dim))
-    return z_mean + K.exp(z_log_sigma) * epsilon
+    return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
+
+source,target = mat_loader()
+np.random.shuffle(source)
+np.random.shuffle(target)
+
+x_train = target[0:6000,:]
+x_test = target[6000:,:]
+
+
+original_dim = x_train.shape[1]
+x_train = np.reshape(x_train, [-1, original_dim])
+x_test = np.reshape(x_test, [-1, original_dim])
+
+
+# network parameters
+input_shape = (original_dim, )
+intermediate_dim = 7
+batch_size = 128
+latent_dim = 5
+epochs = 500
+
+# VAE model = encoder + decoder
+# build encoder model
+inputs = Input(shape=input_shape, name='encoder_input')
+x = Dense(intermediate_dim, activation='relu')(inputs)
+z_mean = Dense(latent_dim, name='z_mean')(x)
+z_log_var = Dense(latent_dim, name='z_log_var')(x)
+
+# use reparameterization trick to push the sampling out as input
 # note that "output_shape" isn't necessary with the TensorFlow backend
-# so you could write `Lambda(sampling)([z_mean, z_log_sigma])`
-z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_sigma])
+z = Lambda(sampling, output_shape=(latent_dim,), name='z')([z_mean, z_log_var])
+
+# instantiate encoder model
+encoder = Model(inputs, [z_mean, z_log_var, z], name='encoder')
+encoder.summary()
+# plot_model(encoder, to_file='vae_mlp_encoder.png', show_shapes=True)
+
+# build decoder model
+latent_inputs = Input(shape=(latent_dim,), name='z_sampling')
+x = Dense(intermediate_dim, activation='relu')(latent_inputs)
+outputs = Dense(original_dim, activation='sigmoid')(x)
+
+# instantiate decoder model
+decoder = Model(latent_inputs, outputs, name='decoder')
+decoder.summary()
+# plot_model(decoder, to_file='vae_mlp_decoder.png', show_shapes=True)
+
+# instantiate VAE model
+outputs = decoder(encoder(inputs)[2])
+vae = Model(inputs, outputs, name='vae_mlp')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    help_ = "Load h5 model trained weights"
+    parser.add_argument("-w", "--weights", help=help_)
+    help_ = "Use mse loss instead of binary cross entropy (default)"
+    parser.add_argument("-m",
+                        "--mse",
+                        help=help_, action='store_true')
+    args = parser.parse_args()
+    models = (encoder, decoder)
+
+    # VAE loss = mse_loss or xent_loss + kl_loss
+    if args.mse:
+        reconstruction_loss = mse(inputs, outputs)
+    else:
+        reconstruction_loss = binary_crossentropy(inputs,
+                                                  outputs)
+
+    reconstruction_loss *= original_dim
+    kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+    kl_loss = K.sum(kl_loss, axis=-1)
+    kl_loss *= -0.5
+    vae_loss = K.mean(reconstruction_loss + kl_loss)
+    vae.add_loss(vae_loss)
+    vae.compile(optimizer='adam')
+    vae.summary()
+    # plot_model(vae,
+    #            to_file='vae_mlp.png',
+    #            show_shapes=True)
+
+    if args.weights:
+        vae.load_weights(args.weights)
+    else:
+        # train the autoencoder
+        history = vae.fit(x_train,
+                epochs=epochs,
+                batch_size=batch_size,
+                validation_data=(x_test, None))
+        vae.save_weights('vae_target.h5')
 
 
-
-decoder_h = Dense(intermediate_dim, activation='relu')
-decoder_mean = Dense(original_dim, activation='sigmoid')
-h_decoded = decoder_h(z)
-x_decoded_mean = decoder_mean(h_decoded)
-
-
-
-vae = Model(x, x_decoded_mean)
-
-# encoder, from inputs to latent space
-encoder = Model(x, z_mean)
-
-# generator, from latent space to reconstructed inputs
-decoder_input = Input(shape=(latent_dim,))
-_h_decoded = decoder_h(decoder_input)
-_x_decoded_mean = decoder_mean(_h_decoded)
-generator = Model(decoder_input, _x_decoded_mean)
-
-
-
-def vae_loss(x, x_decoded_mean):
-    xent_loss = objectives.binary_crossentropy(x, x_decoded_mean)
-    kl_loss = - 0.5 * K.mean(1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma), axis=-1)
-    return xent_loss + kl_loss
-
-vae.compile(optimizer='rmsprop', loss=vae_loss)
-
-
-
-
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-
-x_train = x_train.astype('float32') / 255.
-x_test = x_test.astype('float32') / 255.
-x_train = x_train.reshape((len(x_train), np.prod(x_train.shape[1:])))
-x_test = x_test.reshape((len(x_test), np.prod(x_test.shape[1:])))
-
-vae.fit(x_train, x_train,
-        shuffle=True,
-        epochs=epochs,
-        batch_size=batch_size,
-        validation_data=(x_test, x_test))
-
-
-x_test_encoded = encoder.predict(x_test, batch_size=batch_size)
-plt.figure(figsize=(6, 6))
-plt.scatter(x_test_encoded[:, 0], x_test_encoded[:, 1], c=y_test)
-plt.colorbar()
-plt.show()
-
-
-
-if __name__ == "__main__":
-    dataset()
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.savefig('VAEtarget.png')
